@@ -1,12 +1,12 @@
 # stardata_analysis
 
-This is a repo that allows for analysis and reading of SCBW replays using TorchCraft, specifically examining the replays from StarData[https://github.com/TorchCraft/StarData] and the version of TorchCraft therein.
+This is a repo that allows for analysis and reading of SCBW replays using TorchCraft, specifically examining the replays from [StarData](https://github.com/TorchCraft/StarData) and the version of TorchCraft therein.
 
 ### Requirements / StarData Install:
 
 There are quite a few requirements for this to work, and they are not well-documented or easy to setup (in my opinion). Hopefully this makes it easier.
 
-First, you will need zstd-devel 1.1.4. This can be found here[https://github.com/facebook/zstd/releases/tag/v1.1.4], pull down the .tar.gz, then run 
+First, you will need zstd-devel 1.1.4. This can be [found here](https://github.com/facebook/zstd/releases/tag/v1.1.4), pull down the .tar.gz, then run 
 ```
 tar -xzvf zstd-1.1.4.tar.gz
 cd zstd-1.1.4/
@@ -15,7 +15,7 @@ sudo make install
 ```
 This will give you the appropriate zstd library, required for TorchCraft (later versions seem to work to, but this library gave me a lot of trouble so I'm sticking to what is specified here by the authors). Also note that for me (on Ubuntu 16.04), this installed all of the `libzstd.*` files into `/usr/local/lib/` and not into `/usr/lib/`, so Python had trouble finding them. Maybe it was just weird virtualenv stuff, but if you find later that you can't import torchcraft because a zstd library can't be found, you might have to symlink or copy the `libzstd.*` files to `/usr/lib/`.
 
-Second, we need zeromq 4+. Mercifully, this one is easier. You can find the appropriate release here[https://github.com/zeromq/libzmq/releases/tag/v4.2.3], and again download the .tar.gz file. then run
+Second, we need zeromq 4+. Mercifully, this one is easier. You can find the appropriate [release here](https://github.com/zeromq/libzmq/releases/tag/v4.2.3), and again download the .tar.gz file. then run
 ```
 tar -xzvf zeromq-4.2.3.tar.gz
 cd zeromq-4.2.3/
@@ -25,7 +25,7 @@ sudo make install
 ```
 and you should be good to go.
 
-Unsurprisingly, we also need torch itself! The torch docs themselves[http://torch.ch/docs/getting-started.html] are actually quite good for this part. I'll copy them here for completeness:
+Unsurprisingly, we also need torch itself! The [torch docs](http://torch.ch/docs/getting-started.html) are actually quite good for this part. I'll copy them here for completeness:
 ```
 git clone https://github.com/torch/distro.git ~/torch --recursive
 cd ~/torch; bash install-deps;

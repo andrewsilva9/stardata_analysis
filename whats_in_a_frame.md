@@ -39,29 +39,29 @@ Honestly, not sure what they do.
 * `max_health` : max health
 * `shield` : current shield health / charge
 * `max_shield` : max shield charge
-* `energy` : energy? maybe like mana or magic or something?
-* `maxCD` : Not sure. I really need to watch some starcraft
-* `groundCD`: Not sure
-* `airCD` : Not sure
+* `energy` : Current energy (like mana / magic resource, used by Medics for example)
+* `maxCD` : Max possible cooldown between attacks.
+* `groundCD`: Cooldown remaining before next ground attack
+* `airCD` : Cooldown remaining before next air attack
 * `visible`: Presumably 1 for yes, 0 for no (it is at least 1 for most units)
-* `type`: int that ties to a list of unit classes (so 64 = "Protoss Probe", for example)
-* `armor`: current armor?
+* `type`: enum that ties to a list of unit classes (so 64 = "Protoss Probe", for example)
+* `armor`: unit's armor
 * `shieldArmor` : another type of armor?
-* `size`: I'm not sure of what this is. Internal size metric I suppose?
+* `size`: I'm not sure of what this is. Internal size metric I suppose? Hydras are 2, SCVs are 1, buildings are 3.
 * `pixel_x`: Pixel position of unit? Rather than map coordinate
 * `pixel_y`: Same as above
 * `pixel_size_x`: Size of unit in pixels (x)
 * `pixel_size_y`: Size of unit in pixels (y)
-* `groundATK`: Unsure. Damage a unit does to ground units?
-* `airATK`: Same as above (to air units)
-* `groundDmgType`: Unsure. An enum for damage type?
-* `airDmgType`: Same as above.
-* `groundRange`: Unsure. Range of attack / interaction with ground units?
-* `airRange`: Same as above (for air units)
+* `groundATK`:Damage a unit does to ground units
+* `airATK`: Damage a unit does to air units
+* `groundDmgType`: Enum for damage type {1: explosive, 2: concussive, 3: normal, 4: ???, 5: Unit does no damage)
+* `airDmgType`: Enum for damage type (see above)
+* `groundRange`: Range of attack against ground units. Seems this value is 4x numbers I see online.
+* `airRange`: Range of attack against air units. See above.
 * `velocityX`: Current velocity in x direction?
 * `velocityY`: Current velocity in y direction?
 * `playerId`: Player this unit belongs to (0, 1, or -1 for map resources)
-* `resources`: Unsure
+* `resources`: Applies to gas refineries and maybe mineral fields? Represents how much of X resource remains. 
 
 Units also have a bunch of flags that indicate what they are doing at any given moment, or otherwise what "state" they are in. I don't yet have any idea of what these flags mean, other than to guess by the names. They are:
 

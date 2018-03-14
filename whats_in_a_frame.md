@@ -47,7 +47,7 @@ Honestly, not sure what they do.
 * `type`: int that ties to a list of unit classes (so 64 = "Protoss Probe", for example)
 * `armor`: current armor?
 * `shieldArmor` : another type of armor?
-* `size`: I`m not sure of what this is. Internal size metric I suppose?
+* `size`: I'm not sure of what this is. Internal size metric I suppose?
 * `pixel_x`: Pixel position of unit? Rather than map coordinate
 * `pixel_y`: Same as above
 * `pixel_size_x`: Size of unit in pixels (x)

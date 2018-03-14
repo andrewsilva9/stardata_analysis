@@ -46,4 +46,4 @@ And that should be that. I hope I remembered all of the steps. It was a lot of t
 
 ### What's actually here:
 
-So far, just the .ipynb for pulling in a replay and seeing what's inside. I still have some exploration to do, as it seems so far that units never lose health... But again, this is a decent introduction at least.
+So far, just a couple of iPython notebooks for me to explore the data. And a .md file with a dump of information so I don't lose it later. That's [available here](whats_in_a_frame.md)

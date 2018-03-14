@@ -1,9 +1,9 @@
 # What's in a frame?
-
+```
 That which we call a frame
-By any other word would be as neat
-
-Well, I tried. Anyway, so far here is what I have found.
+By any other word is a spreadsheet
+```
+[Well, I tried.](https://en.wikipedia.org/wiki/A_rose_by_any_other_name_would_smell_as_sweet) Anyway, so far here is what I have found.
 
 ## Inside a 'Replay':
 

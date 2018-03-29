@@ -20,22 +20,22 @@ def unit_pickle_to_xy(filename_in):
     return X, Y
 
 
-def game_pickle_to_xy(filename_in):
+def n_games_pickle_to_action_xy(filename_in):
     raw_data = pickle.load(open(filename_in, 'rb'))
     X, Y = [], []
-    for frame in raw_data:
-        units = frame.units
-        for unit in units:
-            unit_attributes = []
-            for attr_name, attribute in unit.iteritems():
-                if attr_name in bad_keys:
-                    continue
-                else:
-                    unit_attributes.append(attribute)
-            X.append(unit_attributes)
-            Y.append(unit_id)
+    for game in raw_data:
+        for frame in game:
+            units = frame.units
+            for unit in units:
+                unit_attributes = []
+                for attr_name, attribute in unit.iteritems():
+                    if attr_name in bad_keys:
+                        continue
+                    else:
+                        unit_attributes.append(attribute)
+                X.append(unit_attributes)
+                Y.append(unit.id)
     return X, Y
-
 
 
 id2unit = [

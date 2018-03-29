@@ -17,13 +17,27 @@ flags = ['accelerating', 'attacking', 'attack_frame', 'being_constructed', 'bein
 # unit_attrs += flags
 
 
-# Currently not using flags (see above) or: Orders, Commands, crafted features (distance from start base, etc.)
-def unit_to_dict(unit_in):
+# Currently not using flags (see above) or: Commands, crafted features (distance from start base, etc.)
+def unit_to_dict(unit_in, add_orders=True):
     unit_dict = {}
-    unit_dict['type_name'] = data_utils.type_to_name(unit_in.type)
+    unit_dict['type_name'] = data_utils.type_to_name(unit.type)
     for attribute in unit_attrs:
         unit_dict[attribute] = getattr(unit, attribute)
+        if add_orders:
+            order_list = []
+            for order in unit_in.orders:
+                order_list.append(order_to_dict(order))
+            unit_dict['orders'] = order_list
     return unit_dict
+
+
+def order_to_dict(order_in):
+    order_dict = dict()
+    order_dict['type'] = order_in.type
+    order_dict['targetId'] = order_in.targetId
+    order_dict['targetX'] = order_in.targetX
+    order_dict['targetY'] = order_in.targetY
+    return order_dict
 
 
 replay_dirs = []
@@ -40,25 +54,37 @@ for replay_dir in replay_dirs:
         if replay.endswith('.tcr'):
             replays_master.append(os.path.join(replay_dir, replay))
 
-master_unit_dict = {}
+# this is how many games i'm going to save:
+num_games_to_parse = 20
+# counter to track how many i've saved:
 counter = 0
+# master list that will be pickled / saved:
+game_list = []
+# I only want information on these units [zergling, marine, scv, drone, probe, zealot]:
+valid_types = [37, 0, 7, 41, 64, 65]
+# loop over replay master list, grab first "num_games_to_parse"
 for full_filename in replays_master:
-    counter += 1
-    if counter >= 1001:
+    if counter >= num_games_to_parse:
         break
-    replay = replayer.load(full_filename)
-    print("Loaded replay: " + str(full_filename) + " with length: " + str(len(replay)))
-    # All units are in last frame so I only need that.
-    last_frame = replay.getFrame(len(replay) - 1)
-    units = last_frame.units
-    for player_id, unit_arr in units.iteritems():
-        if player_id < 0:
-            # This is a map resource / object, not an army unit
-            continue
-        for unit in unit_arr:
-            if unit.type in master_unit_dict:
-                continue
-            else:
-                master_unit_dict[unit.type] = unit_to_dict(unit)
+    counter += 1
 
-pickle.dump(master_unit_dict, open('sc_units.pkl', 'wb'))
+    replay = replayer.load(full_filename)
+    print("loaded replay of length:" + str(len(replay)))
+    all_frames = []
+    for frame_number in range(len(replay)):
+        frame = replay.getFrame(frame_number)
+        units = frame.units
+        this_frame = []
+        for player_id, unit_arr in units.iteritems():
+            if player_id < 0:
+                # This is a map resource / object, not an army unit
+                continue
+            for unit in unit_arr:
+                if unit.type in valid_types:
+                    this_frame.append(unit_to_dict(unit))
+        all_frames.append(this_frame)
+    game_list.append(all_frames)
+
+pickle_filename = str(num_games_to_parse)+"_games.pkl"
+pickle.dump(game_list, open(pickle_filename, 'wb'))
+

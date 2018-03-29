@@ -46,4 +46,4 @@ And that should be that. I hope I remembered all of the steps. It was a lot of t
 
 ### What's actually here:
 
-So far, just a couple of iPython notebooks for me to explore the data. And a .md file with a dump of information so I don't lose it later. That's [available here](whats_in_a_frame.md)
+So far, just a couple of iPython notebooks for me to explore the data. And a .md file with a dump of information so I don't lose it later. That's [available here](whats_in_a_frame.md). The unit_clusering directory is me playing with sklearn and some unit base stats, which seems kind of cool. More to come on that front. Most of my data exploration is in the `explore_dumped_replays.ipynb` file, so I'd suggest looking that over if you're curious, and swapping variable names or fields to see things change throughout replays, or to start seeing how the different attributes work. For that file, I am only using a single replay (it appears to be a TvZ game), which you can find here: https://www.dropbox.com/s/nk1z4apr67n1l3z/bwrep_poa7y.tcr?dl=0

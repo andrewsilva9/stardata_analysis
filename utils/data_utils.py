@@ -20,21 +20,37 @@ def unit_pickle_to_xy(filename_in):
     return X, Y
 
 
-def n_games_pickle_to_action_xy(filename_in):
+def n_games_pickle_to_action_xy(filename_in, windows_size=24):
+    """
+    load in a pickle from generate_n_games_pkl and return an X, Y for action rec
+    :param filename_in: filename to load in
+    :param windows_size: number of frames to consider for temporal action rec (in # frames, not in sec). default is 24
+    which equals 3 seconds
+    :return: X: non-overlapping windows of unit features
+    :return: Y: order for final frame of each X array
+    #TODO: Change Y to be average for entire sequence rather than final frame?
+    """
     raw_data = pickle.load(open(filename_in, 'rb'))
     X, Y = [], []
+    # Really ugly nested loops. need to improve how i'm storing and resuscitate data
     for game in raw_data:
-        for frame in game:
-            units = frame.units
-            for unit in units:
-                unit_attributes = []
-                for attr_name, attribute in unit.iteritems():
-                    if attr_name in bad_keys:
-                        continue
-                    else:
-                        unit_attributes.append(attribute)
-                X.append(unit_attributes)
-                Y.append(unit.id)
+        for frame_index in range(0, len(game), windows_size):
+            frame_arr = []
+            last_label = None
+            for frame in game[frame_index:frame_index+windows_size]:
+
+                for unit in frame:
+                    unit_attrs = []
+                    for attr_name, attribute in unit.iteritems():
+                        if attr_name == 'orders':
+                            last_label = attribute[-1]['type']
+                        elif attr_name == 'type_name':
+                            continue
+                        else:
+                            unit_attrs.append(attribute)
+                    frame_arr.append(unit_attrs)
+            X.append(frame_arr)
+            Y.append(last_label)
     return X, Y
 
 

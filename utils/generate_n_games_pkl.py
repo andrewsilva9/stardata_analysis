@@ -40,6 +40,13 @@ def order_to_dict(order_in):
     return order_dict
 
 
+def unit_to_arr(unit_in):
+    unit_array = []
+    for attribute in unit_attrs:
+        unit_array.append(getattr(unit_in, attribute))
+    label = unit_in.orders[-1].type
+    return [unit_array, label]
+
 replay_dirs = []
 # Get all subdirectories inside the dumped_replays master directory
 for contents in os.listdir(dumped_replays):
@@ -55,7 +62,9 @@ for replay_dir in replay_dirs:
             replays_master.append(os.path.join(replay_dir, replay))
 
 # this is how many games i'm going to save:
-num_games_to_parse = 20
+num_games_to_parse = 10
+# Window size for action rec (in # frames, not in # sec):
+window_size = 24
 # counter to track how many i've saved:
 counter = 0
 # master list that will be pickled / saved:
@@ -71,6 +80,8 @@ for full_filename in replays_master:
     replay = replayer.load(full_filename)
     print("loaded replay of length:" + str(len(replay)))
     all_frames = []
+    # ids of units I care about:
+    units_i_want = {}
     for frame_number in range(len(replay)):
         frame = replay.getFrame(frame_number)
         units = frame.units
@@ -79,10 +90,18 @@ for full_filename in replays_master:
             if player_id < 0:
                 # This is a map resource / object, not an army unit
                 continue
+            # For each unit in this frame:
             for unit in unit_arr:
+                # Make sure it's a type that I care about
                 if unit.type in valid_types:
-                    this_frame.append(unit_to_dict(unit))
-        all_frames.append(this_frame)
+                    # If I already have it, append a new [state, label] to it, else add it to my dict
+                    if unit.id in units_i_want:
+                        units_i_want[unit.id].append(unit_to_arr(unit))
+                    else:
+                        units_i_want[unit.id] = unit_to_arr(unit)
+        # append list (frame) of lists (valid units) of [state, item] tuples to my gamewide list
+        all_frames.append(units_i_want.values())
+    # save gamewide list to all games
     game_list.append(all_frames)
 
 pickle_filename = str(num_games_to_parse)+"_games.pkl"

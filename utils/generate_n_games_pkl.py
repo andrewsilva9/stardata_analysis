@@ -47,19 +47,12 @@ def unit_to_arr(unit_in):
     label = unit_in.orders[-1].type
     return [unit_array, label]
 
-replay_dirs = []
-# Get all subdirectories inside the dumped_replays master directory
-for contents in os.listdir(dumped_replays):
-    full_path = os.path.join(dumped_replays, contents)
-    if os.path.isdir(full_path):
-        replay_dirs.append(full_path)
 
-replays_master = []
-# aggregate full paths to all replays in one master list
-for replay_dir in replay_dirs:
-    for replay in os.listdir(replay_dir):
-        if replay.endswith('.tcr'):
-            replays_master.append(os.path.join(replay_dir, replay))
+# This file is generated from `get_good_replays.py`
+replays_master = open('good_files.txt', 'r').readlines()
+for i in range(len(replays_master)):
+    replays_master[i] = replays_master[i].split('\n')[0]
+
 
 # this is how many games i'm going to save:
 num_games_to_parse = 10
@@ -78,7 +71,7 @@ for full_filename in replays_master:
     counter += 1
 
     replay = replayer.load(full_filename)
-    print("loaded replay of length:" + str(len(replay)))
+    print("loaded replay: " + full_filename + " of length:" + str(len(replay)))
     all_frames = []
     # ids of units I care about:
     units_i_want = {}

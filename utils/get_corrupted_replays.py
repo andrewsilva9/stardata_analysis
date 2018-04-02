@@ -41,5 +41,6 @@ for filename in all_files:
 with open('bad_files.txt', 'wb') as outfile:
     for line in bad_files:
         outfile.write(line)
+        outfile.write('\n')
     outfile.flush()
     outfile.close()

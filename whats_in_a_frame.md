@@ -118,12 +118,23 @@ Units also have a bunch of flags that indicate what they are doing at any given 
 * `under_storm`
 * `upgrading`
 
+Unit death: Units do die in the frame.units arrays, and they stop appearing. So it's easy to tell when they die, because they disappear.
+#### unit.order
+
+Orders are probably going to be very important, and they represent a ground-truth label of exactly what a unit is doing at any given time. There is a big list of them, which you can find here: https://bwapi.github.io/namespace_b_w_a_p_i_1_1_orders_1_1_enum.html
+
+Each unit has a `orders` attribute, which is a data structure holding all of the orders for that unit (there can be multiple, there can even be 0 I think?)
+Orders contain:
+
+* `type` : Enum for what the order is. See list at link above
+* `targetId` : I believe this is the unitID for the target of the order. it is sometimes (often) = -1
+* `targetX` : This is the target X location. I think in pixels? This seems to always be accurate / true (not -1)
+* `targetY` : Same as above but for Y.
+
 TODO with regard to units:
-- [ ] figure out when they die (health doesn't drop to 0)
 - [ ] learn more about the mapping between `size` and `pixel_size` / `x` and `pixel_x` and `velocity_x`, etc.
-- [ ] learn what the flags mean
-- [ ] learn what `CD` is, and what the `CD` and `ATK` numbers mean
-- [ ] find a mapping for attack types? if this is useful?
+- [ ] units for targetX/Y for orders could be useful...
+- [ ] learn what all of the flags mean
 
 ### frame.resources
 
@@ -132,17 +143,14 @@ Probably second-most important for understanding a frame is the "resources" attr
 * `player_id` : the player that these resources belong to
 * `gas` : int, the amount of gas a player has
 * `ore` : int, the amount of ore / minerals a player has
-* `used_psi` : int, the psi a player has used? Not sure what this is. Supply maybe? Army size?
-* `total_psi` : int, total available psi to a player. Again, supply? Army capacity?
-
-TODO with regard to resources:
-- [ ] learn what 'psi' is
+* `used_psi` : int, the psi a player has used. Represents supply (small units use 1, larger units use more)
+* `total_psi` : int, total available psi for a player. Increased with Pylons, supply depots, or zerg equivalent.
 
 ### frame.bullets
 
 I'm not entirely sure what "bullets" are, but they have only 3 attributes:
 
-* `type` : int, probably an enum?
+* `type` : int, probably an enum? Maybe here: https://bwapi.github.io/namespace_b_w_a_p_i_1_1_bullet_types.html
 * `x` : probably a coordinate?
 * `y` : probably a coordinate?
 

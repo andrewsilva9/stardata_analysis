@@ -65,6 +65,7 @@ def play_opencv_replay(full_replay_path, playerid=0, framerate=1, save_video=Fal
     """
     # TODO: change color of unit or shape or whatever if they're attacking, losing health, order changing, whatever
     map_shape = (1024, 1024, 3)
+    unit_scale = 4
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter('output.avi', fourcc, 20.0, (1024, 1024))
 
@@ -90,7 +91,6 @@ def play_opencv_replay(full_replay_path, playerid=0, framerate=1, save_video=Fal
                     this_frame[unit.id] = unit_to_dict(unit)
             # End iteration over units for player_id in this frame
         # End iteration over units for all players in this frame
-        # TODO: right here, create a white image, draw circles for each unit
         for unit_id, unit_dict in this_frame.iteritems():
             unit_color = color_dict[unit_dict['type']]
             if unit_dict['attacking']:
@@ -98,12 +98,14 @@ def play_opencv_replay(full_replay_path, playerid=0, framerate=1, save_video=Fal
             if unit_dict['playerId'] == 0:
                 unit_center = (unit_dict['x']*2, unit_dict['y']*2)
                 cv2.circle(white_bg, unit_center,
-                           unit_dict['size']*4,
+                           unit_dict['size']*unit_scale,
                            color=unit_color,
                            thickness=-1)
             else:
-                unit_top_left = (unit_dict['x'] * 2 - unit_dict['size'] * 2, unit_dict['y'] * 2 - unit_dict['size']*2)
-                unit_bot_right = (unit_dict['x'] * 2 + unit_dict['size'] * 2, unit_dict['y'] * 2 + unit_dict['size']*2)
+                unit_top_left = (unit_dict['x'] * 2 - unit_dict['size'] * unit_scale,
+                                 unit_dict['y'] * 2 - unit_dict['size'] * unit_scale)
+                unit_bot_right = (unit_dict['x'] * 2 + unit_dict['size'] * unit_scale,
+                                  unit_dict['y'] * 2 + unit_dict['size'] * unit_scale)
                 cv2.rectangle(white_bg,
                               unit_top_left,
                               unit_bot_right,
@@ -116,6 +118,13 @@ def play_opencv_replay(full_replay_path, playerid=0, framerate=1, save_video=Fal
     # End iteration over all frames
     out.release()
     cv2.destroyAllWindows()
+    player0psi = frame.resources[0].used_psi
+    player1psi = frame.resources[1].used_psi
+    if player0psi > player1psi:
+        print("I think player 0 won with " + str(player0psi-player1psi) + " more psi than player 1")
+    else:
+        print("I think player 1 won with " + str(player1psi-player0psi) + " more psi than player 1")
+
     return True
 
 
@@ -135,13 +144,13 @@ if __name__ == '__main__':
     color_dict = {
         0: (0, 255, 0),
         1: (255, 85, 0),
-        2: (85, 255, 0),
+        2: (70, 150, 0),
         3: (85, 85, 0),
-        5: (255, 255, 0),
-        30: (255, 255, 0),
+        5: (100, 0, 200),
+        30: (200, 200, 150),
         7: (255, 0, 0),
-        8: (0, 255, 85),
-        9: (0, 255, 255),
+        8: (0, 255, 150),
+        9: (0, 150, 255),
         11: (0, 85, 255),
         12: (255, 0, 255),
         13: (0, 0, 0),
@@ -149,29 +158,31 @@ if __name__ == '__main__':
         33: (255, 0, 85),
         58: (85, 85, 85),
         34: (85, 0, 85),
-        37: (255, 0, 0),
+        ################
+        37: (0, 255, 0),
         38: (255, 85, 0),
-        39: (85, 85, 0),
+        39: (70, 150, 0),
         40: (0, 0, 0),
-        41: (0, 255, 0),
-        42: (0, 255, 255),
-        43: (0, 255, 85),
+        41: (255, 0, 0),
+        42: (0, 255, 150),
+        43: (0, 150, 255),
         44: (255, 0, 255),
         45: (255, 85, 255),
-        46: (85, 85, 85),
+        46: (70, 150, 85),
         50: (0, 0, 0),
         62: (255, 255, 85),
         103: (85, 255, 255),
+        ##################
         64: (255, 0, 0),
         65: (255, 85, 0),
-        60: (85, 85, 0),
+        60: (70, 150, 0),
         61: (0, 0, 0),
         63: (0, 255, 0),
-        66: (0, 255, 255),
-        67: (0, 255, 85),
+        66: (0, 255, 150),
+        67: (0, 150, 255),
         68: (255, 0, 255),
         69: (255, 85, 255),
-        70: (85, 85, 85),
+        70: (250, 150, 150),
         71: (0, 0, 0),
         72: (255, 255, 85),
         73: (85, 255, 255),
@@ -180,6 +191,6 @@ if __name__ == '__main__':
         85: (15, 125, 150)
                   }
     fps = 20
-    replay_path = '/media/asilva/HD_home/StarData/dumped_replays/1/bwrep_zkcw9.tcr'
+    replay_path = '/media/asilva/HD_home/StarData/dumped_replays/0/bwrep_poa7y.tcr'
     save_vid = True
     play_opencv_replay(replay_path, playerid=2, framerate=fps, save_video=save_vid)

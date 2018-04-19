@@ -31,8 +31,10 @@ def unit_to_dict(unit_in, unit_spawn, all_units, valid_types):
     :return: dictionary of {key: value} for all keys in unit_attrs global
     """
     unit_dict = dict()
-    for attribute in unit_attrs:
-        unit_dict[attribute] = getattr(unit_in, attribute)
+    # for attribute in unit_attrs:
+    #     unit_dict[attribute] = getattr(unit_in, attribute)
+    unit_dict['perc_health'] = unit_in.health*1.0/unit_in.max_health
+    unit_dict['perc_ground_cd'] = unit_in.groundCD*1.0/unit_in.maxCD
     if unit_spawn[0] < 0:
         unit_dict['distance_from_home'] = 0.0
     else:

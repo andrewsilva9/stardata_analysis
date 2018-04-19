@@ -1,4 +1,7 @@
+*.tcr
+*.pkl
 *.pyc
 *.avi
 .idea
 .ipynb_checkpoints
+reporting/

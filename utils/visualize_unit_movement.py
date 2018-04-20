@@ -23,7 +23,7 @@ unit_attrs += flags
 
 def unit_to_dict(unit_in, unit_spawn, all_units, valid_types):
     """
-    convert a unit to a dictionary of desired attributes
+    convert a unit to a dictionary of desired attributes. currently generating MIN dataset from feature_sets.md
     :param unit_in: unit to interpret
     :param unit_spawn: spawn point of unit (if -1, -1, consider this to be starting point)
     :param all_units: list of all units for this frame (necessary for neighbors)
@@ -31,10 +31,11 @@ def unit_to_dict(unit_in, unit_spawn, all_units, valid_types):
     :return: dictionary of {key: value} for all keys in unit_attrs global
     """
     unit_dict = dict()
-    # for attribute in unit_attrs:
-    #     unit_dict[attribute] = getattr(unit_in, attribute)
-    unit_dict['perc_health'] = unit_in.health*1.0/unit_in.max_health
-    unit_dict['perc_ground_cd'] = unit_in.groundCD*1.0/unit_in.maxCD
+    # Remove below for non-vis dataset
+    for attribute in unit_attrs:
+        unit_dict[attribute] = getattr(unit_in, attribute)
+    unit_dict['percent_health'] = unit_in.health*1.0/unit_in.max_health
+    unit_dict['current_cooldown'] = (unit_in.groundCD+1)*1.0/(unit_in.maxCD+1)
     if unit_spawn[0] < 0:
         unit_dict['distance_from_home'] = 0.0
     else:
@@ -158,6 +159,10 @@ def game_over_time(full_replay_path,
                         starting_positions[unit.id] = (unit.x, unit.y)
             # End iteration over units for player_id in this frame
         # End iteration over units for all players in this frame
+        # TODO: this is a hack for only TvT matchups. remove this later:
+        # if len(this_frame) == 0 and frame_number == 0:
+        #     # no valid units in this frame, we can assume this was not a terran player
+        #     return -1
         game_data.append(this_frame)
     # End iteration over all frames
     player0psi = frame.resources[0].used_psi
@@ -229,7 +234,7 @@ if __name__ == '__main__':
     # this is how many games i'm going to save:
     num_games_to_parse = 3
     # I only want information on these units:
-    terran_valid_types = [0, 1, 2, 3, 5, 7, 8, 9, 11, 12, 13, 30, 32, 33, 34, 58]
+    terran_valid_types = [0, 1, 2, 3, 5, 7, 8, 9, 11, 12, 13, 30, 32, 34, 58]
     zerg_valid_types = [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 50, 62, 103]
     protoss_valid_types = [60, 61, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 83, 84, 85]
     zerg_babies = [35, 36, 59, 97]
@@ -286,11 +291,23 @@ if __name__ == '__main__':
         85: (15, 125, 150)
                   }
     fps = 1
-    replay_path = '/media/asilva/HD_home/StarData/dumped_replays/0/bwrep_poa7y.tcr'
-    step_frames = 500
-    save_vid = False
-    play_vid = True
-    draw_text = True
+
+    # DATA GENERATION STUFF:
+    # all_games = []
+    # for replay_path in replays_master:
+    #     if len(all_games) > 2:
+    #         break
+    #     game_info = game_over_time(replay_path, valid_types=valid_units, playerid=2, step_size=4)
+    #     if game_info != -1:
+    #         all_games.append(game_info)
+    # print all_games
+
+    # CODE NECESSARY TO VISUALIZE THIS. ABOVE IS JUST DATA GENERATION
+    replay_path = '/media/asilva/HD_home/StarData/dumped_replays/1/bwrep_lpkn5.tcr'
+    step_frames = 4
+    save_vid = True
+    play_vid = False
+    draw_text = False
     play_opencv_replay(replay_path,
                        valid_units,
                        playerid=2,

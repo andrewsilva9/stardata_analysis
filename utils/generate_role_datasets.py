@@ -33,9 +33,8 @@ def unit_to_dict(unit_in, unit_spawn, all_units, valid_types):
     :return: dictionary of {key: value} for all keys in unit_attrs global
     """
     MIN = True
+    MED = False
     MAX = False
-    MED = True
-    # MIN = True
     unit_dict = dict()
 
     if unit_spawn[0] < 0:
@@ -47,9 +46,9 @@ def unit_to_dict(unit_in, unit_spawn, all_units, valid_types):
         nearby_allies = get_nearest_units(unit_in, all_units, valid_types)
         unit_dict['nearby_allies'] = nearby_allies*1.0/len(all_units)
     if MED:
-        unit_dict['attacking'] = 1 if unit_in.attacking else 0
-        unit_dict['mining'] = 1 if unit_in.gathering_gas or unit_in.gathering_minerals or unit_in.carrying_gas or unit_in.carrying_minerals else 0
-        unit_dict['building'] = unit_in.constructing
+        unit_dict['attacking'] = 1.0 if unit_in.attacking else 0.0
+        unit_dict['mining'] = 1.0 if (unit_in.gathering_gas or unit_in.gathering_minerals or unit_in.carrying_gas or unit_in.carrying_minerals) else 0.0
+        unit_dict['building'] = 1.0 if unit_in.constructing else 0.0
         unit_dict['visible'] = unit_in.visible
         unit_dict['size'] = unit_in.size
         # unit_dict['armor'] = unit_in.armor
@@ -160,27 +159,55 @@ def game_over_time(full_replay_path,
 def post_process(game_array,
                 n_timesteps=2):
     """
-    takes in a game_over_time array and post-processes the data. For now that means
-    linking up N consecutive timesteps into a single array. maybe i'll do something like optic flow too?
+    takes in a game_over_time array and post-processes the data. For now that means optic flow / delta across frames
     :param game_array: an array of a single game from game_over_time
-    :return game_array: an array of a single game, where units are N timesteps longer"""
+    :return game_array: an array of a single game where each unit gains features that are calculated across time"""
     final_game_data = []
     for frame_index in range(0, len(game_array), n_timesteps):
         upcoming_seq = game_array[frame_index]
         last_frame = frame_index+n_timesteps
         if last_frame >= len(game_array):
-            last_frame = -1
+            # last_frame = -1
+            continue  # Currently planning on only taking in n_timesteps, ignoring all else.
         to_add = {}
         for unit_id in upcoming_seq.keys():
+            # Commented out because I am currently not manufacturing new features
+            # Calculate delta between last_frame and current frame:
             if unit_id in game_array[last_frame].keys():
                 upcoming_seq[unit_id]['distance_moved'] = game_array[last_frame][unit_id]['distance_from_home'] - upcoming_seq[unit_id]['distance_from_home']
                 upcoming_seq[unit_id]['health_change'] = game_array[last_frame][unit_id]['percent_health'] - upcoming_seq[unit_id]['percent_health']
             else:
-                upcoming_seq[unit_id]['distance_moved'] = 0
-                upcoming_seq[unit_id]['health_change'] = -1
+                upcoming_seq[unit_id]['distance_moved'] = 0.0
+                upcoming_seq[unit_id]['health_change'] = -1.0
             to_add[unit_id] = upcoming_seq[unit_id].values()
         for i in range(n_timesteps):
             final_game_data.append(to_add)
+    return final_game_data
+
+
+def hmm_data(game_array,
+             n_timesteps=2):
+    """
+    takes in a game_over_time array and post-processes the data by linking up N consecutive timesteps into one array
+    :param game_array: an array of a single game from game_over_time
+    :return game_array: an array of a single game, where units are N timesteps longer
+    """
+    final_game_data = []
+    for frame_index in range(0, len(game_array), n_timesteps):
+        upcoming_seq = {}
+        for frame in game_array[frame_index:frame_index+n_timesteps]:
+            for unit_id, unit_arr in frame.iteritems():
+                if unit_id in upcoming_seq:
+                    upcoming_seq[unit_id].extend(unit_arr.values())
+                else:
+                    upcoming_seq[unit_id] = unit_arr.values()
+        # Pad missing timesteps with -1s
+        filler_arr = [-1]
+        correct_length = len(unit_arr) * n_timesteps
+        for unit_id, unit_seq in upcoming_seq.iteritems():
+            if len(unit_seq) < correct_length:
+                unit_seq += filler_arr * (correct_length - len(unit_seq))
+            final_game_data.append(unit_seq)
     return final_game_data
 
 

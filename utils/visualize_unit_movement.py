@@ -303,14 +303,14 @@ if __name__ == '__main__':
     # print all_games
 
     # CODE NECESSARY TO VISUALIZE THIS. ABOVE IS JUST DATA GENERATION
-    replay_path = '/media/asilva/HD_home/StarData/dumped_replays/1/bwrep_lpkn5.tcr'
-    step_frames = 4
+    replay_path = '/media/asilva/HD_home/StarData/dumped_replays/0/bwrep_poa7y.tcr'
+    step_frames = 1
     save_vid = True
     play_vid = False
     draw_text = False
     play_opencv_replay(replay_path,
                        valid_units,
-                       playerid=2,
+                       playerid=0,
                        framerate=fps,
                        step_size=step_frames,
                        save_video=save_vid,

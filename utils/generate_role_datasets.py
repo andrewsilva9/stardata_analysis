@@ -138,7 +138,6 @@ def game_over_time(full_replay_path,
                 continue
             elif player_id < 0:
                 continue
-            new_unit = False
             for unit in unit_arr:
                 if unit.type in valid_types:
                     if not unit.completed:
@@ -146,12 +145,8 @@ def game_over_time(full_replay_path,
                     if unit.id in starting_positions:
                         this_frame[unit.id] = unit_to_dict(unit, starting_positions[unit.id], unit_arr, valid_types)
                     else:
-                        new_unit = True
                         this_frame[unit.id] = unit_to_dict(unit, (-1, -1), unit_arr, valid_types)
                         starting_positions[unit.id] = (unit.x, unit.y)
-            # TODO: this is the TvT hack. remove later?
-            # if not new_unit and frame_number == 0:
-            #     return -1
         game_data.append(this_frame)
     return game_data
 
@@ -167,8 +162,8 @@ def post_process(game_array,
         upcoming_seq = game_array[frame_index]
         last_frame = frame_index+n_timesteps
         if last_frame >= len(game_array):
-            # last_frame = -1
-            continue  # Currently planning on only taking in n_timesteps, ignoring all else.
+            last_frame = -1
+#             continue  # Currently planning on only taking in n_timesteps, ignoring all else.
         to_add = {}
         for unit_id in upcoming_seq.keys():
             # Commented out because I am currently not manufacturing new features
@@ -202,6 +197,7 @@ def hmm_data(game_array,
                 else:
                     upcoming_seq[unit_id] = unit_arr.values()
         # Pad missing timesteps with -1s
+        # FIXME: this does not pad -1s on the front if id's showed up halfway through, it only pads them to the back
         filler_arr = [-1]
         correct_length = len(unit_arr) * n_timesteps
         for unit_id, unit_seq in upcoming_seq.iteritems():

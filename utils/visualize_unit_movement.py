@@ -226,19 +226,7 @@ def play_opencv_replay(full_replay_path,
 
 if __name__ == '__main__':
 
-    # This file is generated from `get_good_replays.py`
-    replays_master = open('good_files.txt', 'r').readlines()
-    for i in range(len(replays_master)):
-        replays_master[i] = replays_master[i].split('\n')[0]
-
-    # this is how many games i'm going to save:
-    num_games_to_parse = 3
-    # I only want information on these units:
-    terran_valid_types = [0, 1, 2, 3, 5, 7, 8, 9, 11, 12, 13, 30, 32, 34, 58]
-    zerg_valid_types = [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 50, 62, 103]
-    protoss_valid_types = [60, 61, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 83, 84, 85]
-    zerg_babies = [35, 36, 59, 97]
-    valid_units = terran_valid_types + zerg_valid_types + protoss_valid_types
+    from generate_role_datasets import hyper_params
 
     # map types to colors
     color_dict = {
@@ -291,7 +279,7 @@ if __name__ == '__main__':
         85: (15, 125, 150)
                   }
     fps = 1
-
+    params = hyper_params()
     # DATA GENERATION STUFF:
     # all_games = []
     # for replay_path in replays_master:
@@ -305,6 +293,7 @@ if __name__ == '__main__':
     # CODE NECESSARY TO VISUALIZE THIS. ABOVE IS JUST DATA GENERATION
     replay_path = '/media/asilva/HD_home/StarData/dumped_replays/0/bwrep_poa7y.tcr'
     step_frames = 3
+    valid_units = params['valid_units']
     save_vid = True
     play_vid = False
     draw_text = False

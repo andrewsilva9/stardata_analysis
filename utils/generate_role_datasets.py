@@ -420,7 +420,7 @@ def hyper_params():
         replays_master[i] = replays_master[i].split('\n')[0]
     param_dict['replays_master'] = replays_master
     # this is how many games i'm going to save:
-    param_dict['num_games_to_parse'] = 50
+    param_dict['num_games_to_parse'] = 500
     # I only want information on these units:
     param_dict['terran_valid_types'] = [0, 1, 2, 3, 5, 7, 8, 9, 11, 12, 13, 30, 32, 34, 58]
     param_dict['zerg_valid_types'] = [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 50, 62, 103]
@@ -437,8 +437,8 @@ def hyper_params():
     param_dict['window_size'] = 23
     param_dict['playerid'] = 2
 
-    param_dict['feature_set'] = 'min'
-    param_dict['add_orders'] = False
+    param_dict['feature_set'] = 'max'
+    param_dict['add_orders'] = True
 
     return param_dict
 

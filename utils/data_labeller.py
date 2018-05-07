@@ -121,7 +121,7 @@ def am_i_attacking(potential_attacker,
                    nearest_enemy_base,
                    target_from_enemy):
     attacking_orders = [8, 9, 10, 11, 12, 14, 64, 65]
-    if nearest_enemy_base < dist_from_home or target_from_enemy < target_from_home:
+    if target_from_enemy < target_from_home:
         # Closer to opponent than to my base
         if potential_attacker.attacking or potential_attacker.orders[-1].type in attacking_orders:
             return True
@@ -134,7 +134,7 @@ def am_i_defending(potential_defender,
                    dist_from_enemy,
                    target_from_enemy):
     attacking_orders = [8, 9, 10, 11, 12, 14, 64, 65]
-    if dist_from_home < dist_from_enemy or target_from_home < target_from_enemy:
+    if target_from_home < target_from_enemy:
         # Closer to home than to enemy
         if potential_defender.attacking or potential_defender.orders[-1].type in attacking_orders:
             return True
@@ -142,7 +142,7 @@ def am_i_defending(potential_defender,
 
 
 def dist(unit, base):
-    return np.sqrt((unit[0] - base[0])**2 + (unit[0] - base[1])**2)
+    return np.sqrt((unit[0] - base[0])**2 + (unit[1] - base[1])**2)
 
 
 def dist_to_nearest_base(unit_position, bases):
@@ -166,6 +166,19 @@ def get_unit_role(unit_in,
     :param last_location: where was I last?
     :return: int: unit role
     """
+    # unit_pos = [unit_in.x, unit_in.y, unit_in.id]
+    # bases = player_bases[unit_in.playerId]
+    # print("PLAYER_ID:", unit_in.playerId)
+    # print("BASES:", bases)
+    # print("ALL_BASES:", player_bases)
+    # closest_base = dist_to_nearest_base(unit_pos, bases)
+    # enemy_bases = player_bases[((unit_in.playerId+1) % 2)]
+    #
+    # nearest_enemy = dist_to_nearest_base(unit_pos, enemy_bases)
+    # print("x,y, id:", unit_pos)
+    # print('NN:', closest_base)
+    # print("NE:", nearest_enemy)
+
     if am_i_mining(unit_in):
         return role_dict['miner']
     if am_i_building(unit_in):
@@ -251,7 +264,7 @@ def game_role_data(replay_data,
     """
     all_role_data = []
 
-    main_base_ids = [106, 131, 154]
+    main_base_ids = [106, 131, 132, 133, 154]
     last_frame = {}
     for frame_number in range(0, len(replay_data), step_size):
         frame = replay_data.getFrame(frame_number)
@@ -266,10 +279,6 @@ def game_role_data(replay_data,
                         playerbases[p_id].append([maybe_base.x, maybe_base.y])
         # Get the real data
         for player_id, unit_arr in units.iteritems():
-            if player_id != playerid and playerid < 2:
-                continue
-            elif player_id < 0:
-                continue
             for unit in unit_arr:
                 #TODO valid_types should be... all mobile units? all units including buildings?
                 if unit.type in valid_types:
@@ -307,6 +316,8 @@ def draw_units(unit_dictionary_for_drawing,
         unit_scale = int(5 * (unit_dict['health'] * 1.0 / unit_dict['max_health']))
         if unit_id not in unit_dictionary_for_coloring:
             unit_color = (0, 0, 0)
+            unit_dict['size'] = 1
+            unit_scale = 3
         else:
             unit_color = color_dict[unit_dictionary_for_coloring[unit_id]]
         if unit_dict['playerId'] == 0:

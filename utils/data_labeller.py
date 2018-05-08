@@ -17,54 +17,15 @@ color_dict = {
     -1: (0, 0, 255),
     0: (0, 255, 0),
     1: (255, 0, 0),
-    2: (0, 255, 0),
-    3: (0, 255, 0),
+    2: (255, 153, 51),
+    3: (0, 0, 152),
     4: (110, 255, 110),
     5: (10, 85, 150),
     6: (85, 85, 85),
-    8: (0, 255, 0),
-    9: (0, 255, 0),
-    11: (0, 255, 0),
-    12: (0, 255, 0),
-    13: (0, 255, 0),
-    32: (0, 255, 0),
-    33: (0, 255, 0),
-    58: (0, 255, 0),
-    34: (0, 255, 0),
-    ################
-    37: (255, 0, 0),
-    38: (255, 0, 0),
-    39: (255, 0, 0),
-    40: (255, 0, 0),
-    41: (255, 0, 0),
-    42: (255, 0, 0),
-    43: (255, 0, 0),
-    44: (255, 0, 0),
-    45: (255, 0, 0),
-    46: (255, 0, 0),
-    50: (255, 0, 0),
-    62: (255, 0, 0),
-    103: (255, 0, 0),
-    ##################
-    64: (0, 0, 255),
-    65: (0, 0, 255),
-    60: (0, 0, 255),
-    61: (0, 0, 255),
-    63: (0, 0, 255),
-    66: (0, 0, 255),
-    67: (0, 0, 255),
-    68: (0, 0, 255),
-    69: (0, 0, 255),
-    70: (0, 0, 255),
-    71: (0, 0, 255),
-    72: (0, 0, 255),
-    73: (0, 0, 255),
-    83: (0, 0, 255),
-    84: (0, 0, 255),
-    85: (110, 255, 255)
+    7: (0, 128, 255)
 }
 
-test_set_replays = params['replays_master'][-2:]
+test_set_replays = params['replays_master'][-4:-2]
 
 # If constantly carrying minerals / doing the mining set of actions, you're a miner
 # If doing the building / constructing set of actions, you're a builder
@@ -83,11 +44,12 @@ role_dict = {
     'miner': 0,
     'builder': 1,
     'scout': 2,
-    'escort': 3,
+    'idle': 3,
     'attacker': 4,
     'support': 5,
     'defender': 6,
     'patrol': 7,
+    'escort': 8,
     'other': -1
 }
 reverse_role_dict = dict()
@@ -96,35 +58,65 @@ for key, val in role_dict.iteritems():
 
 
 def am_i_mining(potential_miner):
+    """
+    If I am on a mining order or a mining flag
+    :param potential_miner: unit to consider
+    :return: True for miner or False for other
+    """
     mining_orders = [79,80,81,82,83,84,85,86,87,88,89,90]
     if potential_miner.gathering_gas or \
             potential_miner.gathering_minerals or \
             potential_miner.carrying_gas or \
-            potential_miner.carrying_minerals or \
-            potential_miner.orders[-1].type in mining_orders :
+            potential_miner.carrying_minerals:
         return True
-    else:
-        return False
+    for order in potential_miner.orders:
+        if order.type in mining_orders:
+            return True
+    return False
 
 
 def am_i_building(potential_builder):
+    """
+    If I am on a building order or a building flag
+    :param potential_builder: unit to consider
+    :return: True for builder or False for other
+    """
     building_orders = [30, 32, 33, 42, 43]
-    if potential_builder.constructing or potential_builder.morphing or potential_builder.orders[-1].type in building_orders:
+    if potential_builder.constructing or potential_builder.morphing:
         return True
-    else:
-        return False
+    for order in potential_builder.orders:
+        if order.type in building_orders:
+            return True
+    return False
 
 
 def am_i_attacking(potential_attacker,
                    target_from_home,
                    dist_from_home,
                    nearest_enemy_base,
-                   target_from_enemy):
+                   target_from_enemy,
+                   allies_near_target):
+    """
+    If my target location is closer to an enemy base than to my own base and I am attacking, or moving toward a group
+    of allies
+    :param potential_attacker: unit to consider
+    :param target_from_home: distance between my target location and the nearest allied base
+    :param dist_from_home: distance between me and the nearest allied base
+    :param nearest_enemy_base: distance between me and the nearest enemy base
+    :param target_from_enemy: distance between my target location and the nearest enemy base
+    :param allies_near_target: number of allies near my target location
+    :return: True for attacker or False for other
+    """
     attacking_orders = [8, 9, 10, 11, 12, 14, 64, 65]
     if target_from_enemy < target_from_home:
         # Closer to opponent than to my base
-        if potential_attacker.attacking or potential_attacker.orders[-1].type in attacking_orders:
+        if potential_attacker.attacking or potential_attacker.starting_attack or potential_attacker.attack_frame:
             return True
+        if allies_near_target > 3:
+            return True
+        for order in potential_attacker.orders:
+            if order.type in attacking_orders:
+                return True
     return False
 
 
@@ -133,10 +125,59 @@ def am_i_defending(potential_defender,
                    dist_from_home,
                    dist_from_enemy,
                    target_from_enemy):
+    """
+    If my target location is closer to an allied base than to an enemy base and I am attacking
+    :param potential_defender: unit to consider
+    :param target_from_home: distance between my target location and the nearest allied base
+    :param dist_from_home: distance between me and the nearest allied base
+    :param dist_from_enemy: distance between me and the nearest enemy base
+    :param target_from_enemy: distance between my target location and the nearest enemy base
+    :return: True for defender or False for other
+    """
     attacking_orders = [8, 9, 10, 11, 12, 14, 64, 65]
     if target_from_home < target_from_enemy:
         # Closer to home than to enemy
-        if potential_defender.attacking or potential_defender.orders[-1].type in attacking_orders:
+        if potential_defender.attacking or potential_defender.starting_attack or potential_defender.attack_frame:
+            return True
+        for order in potential_defender.orders:
+            if order.type in attacking_orders:
+                return True
+    return False
+
+
+def am_i_patrolling(potential_patrol,
+                    target_from_home,
+                    dist_from_home,
+                    num_neighbors):
+    """
+    If I am on a patrol order, or I am moving away from home with neighbors (that's a bad criteria...)
+    :param potential_patrol: unit to consider
+    :param target_from_home: distance between my target location and the nearest allied base
+    :param dist_from_home: distance between me and the nearest allied base
+    :return: True for patrol or False for other
+    """
+    patrol_orders = [152, 159]
+    if potential_patrol.patrolling:
+        return True
+    for order in potential_patrol.orders:
+        if order.type in patrol_orders:
+            return True
+    if target_from_home > dist_from_home and num_neighbors > 1:
+        return True
+    return False
+
+
+def am_i_support(potential_support):
+    """
+    If I am on a support order (heal / repair)
+    :param potential_support: unit to consider
+    :return: True for support, False otherwise
+    """
+    support_orders = [34, 35, 176, 177, 178, 179]
+    if potential_support.repairing:
+        return True
+    for order in potential_support.orders:
+        if order.type in support_orders:
             return True
     return False
 
@@ -179,10 +220,13 @@ def get_unit_role(unit_in,
     # print('NN:', closest_base)
     # print("NE:", nearest_enemy)
 
+    # These two require no information on distance from home, only on orders
     if am_i_mining(unit_in):
         return role_dict['miner']
     if am_i_building(unit_in):
         return role_dict['builder']
+    if am_i_support(unit_in):
+        return role_dict['support']
     unit_pos = [unit_in.x, unit_in.y, unit_in.id]
     bases = player_bases[unit_in.playerId]
     enemy_bases = player_bases[((unit_in.playerId+1) % 2)]
@@ -192,6 +236,7 @@ def get_unit_role(unit_in,
     #     last_nearest = dist_to_nearest_base(last_location, bases)
     # else:
     #     last_nearest = closest_base
+
 
     last_order = unit_in.orders[-1]
     last_order_target = [last_order.targetX, last_order.targetY]
@@ -208,9 +253,8 @@ def get_unit_role(unit_in,
                       target_from_home=target_nearest_base,
                       dist_from_home=closest_base,
                       nearest_enemy_base=nearest_enemy,
-                      target_from_enemy=target_nearest_enemy):
-        return role_dict['attacker']
-    elif target_nearest_base > closest_base and allies_near_target > 1:
+                      target_from_enemy=target_nearest_enemy,
+                      allies_near_target=allies_near_target):
         return role_dict['attacker']
     elif am_i_defending(unit_in,
                         target_from_home=target_nearest_base,
@@ -218,16 +262,23 @@ def get_unit_role(unit_in,
                         dist_from_enemy=nearest_enemy,
                         target_from_enemy=target_nearest_enemy):
         return role_dict['defender']
+    elif am_i_patrolling(unit_in,
+                         target_from_home=target_nearest_base,
+                         dist_from_home=closest_base,
+                         num_neighbors=nearby_allies):
+        return role_dict['patrol']
 
     elif target_nearest_base > closest_base and nearby_allies < 1:
         return role_dict['scout']
 
+    elif last_location == unit_pos[:2]:
+        return role_dict['idle']
     return -1
 
 
 def get_nearest_units(unit_in_pos,
                       all_units,
-                      threshold=10):
+                      threshold=35):
     """
     return a count of nearby neighbors. buildings included.
     :param unit_in: unit to compare to as [x, y, id] tuple
@@ -295,6 +346,35 @@ def game_role_data(replay_data,
                     last_frame[unit.id] = [unit.x, unit.y]
         all_role_data.append(this_frame)
     return all_role_data
+
+
+def forward_fill(role_data_dict):
+    """
+    Forward-propagate role data for each unit ID through time. There is a hierarchy, so things overwrite each other
+    I'll make the hierarchy explicit and clear once I know what it is.
+    :param role_data_dict: output from game_role_data. list of dicts of ids:roles
+    :return: role_data_dict with role numbers overwritten by prior roles. same format as input though
+    """
+    values_to_overwrite = [role_dict['other']]
+    role_arrays = dict()
+    forward_filled = []
+    for frame_dict in role_data_dict:
+        replacement_dict = dict()
+        for key, value in frame_dict.iteritems():
+            if key in role_arrays:
+                if value in values_to_overwrite:
+                    role_arrays[key].append(role_arrays[key][-1])
+                else:
+                    role_arrays[key].append(value)
+            else:
+                role_arrays[key] = [value]
+            replacement_dict[key] = role_arrays[key][-1]
+        forward_filled.append(replacement_dict)
+    return forward_filled
+
+
+def backward_fill(role_data_dict):
+    pass
 
 
 def draw_units(unit_dictionary_for_drawing,
@@ -397,7 +477,7 @@ if __name__ == "__main__":
         replay = replayer.load(replay_path)
         print("loaded replay: " + replay_path + " of length:" + str(len(replay)))
         valid_draw_units = np.arange(0, 203).tolist()
-        valid_role_units = params['terran_valid_types'] + params['zerg_valid_types'] + params['protoss_valid_types']
+        valid_role_units = params['terran_valid_types'] # + params['zerg_valid_types'] + params['protoss_valid_types']
         draw_data = generate_role_datasets.game_data_for_drawing(replay=replay,
                                                                  valid_types=valid_draw_units,
                                                                  playerid=2,
@@ -408,14 +488,16 @@ if __name__ == "__main__":
                                    playerid=2,
                                    step_size=1)
         print("Roles assigned")
+        ffilled = forward_fill(role_data)
+        print("Forward filled")
         movie_name = replay_path.split('/')[-1] + 'GT'
 
         save_vid = True
         play_vid = False
-        draw_text = True
+        draw_text = False
         fps = 8
         play_opencv_replay(draw_data=draw_data,
-                           processed_data=role_data,
+                           processed_data=ffilled,
                            clf_name=movie_name,
                            framerate=fps,
                            save_video=save_vid,

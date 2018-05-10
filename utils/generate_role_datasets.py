@@ -27,16 +27,26 @@ flags = ['accelerating', 'attacking', 'attack_frame', 'being_constructed', 'bein
 # unit_attrs += flags
 
 
+def dist_to_nearest_base(unit_position, bases):
+    nearest_base = 65000
+    for base in bases:
+        dist_to_base = dist(unit_position, base)
+        if dist_to_base < nearest_base:
+            nearest_base = dist_to_base
+    return nearest_base
+
+
 def unit_to_dict(unit_in,
-                 unit_spawn,
+                 last_position,
                  all_units,
+                 player_bases,
                  valid_types,
                  feature_set,
                  add_orders):
     """
     convert a unit to a dictionary of desired attributes. currently generating MIN dataset from feature_sets.md
     :param unit_in: unit to interpret
-    :param unit_spawn: spawn point of unit (if -1, -1, consider this to be starting point)
+    :param last_position: position of unit in the last frame (-1,-1 means this is the first time i've seen this unit)
     :param all_units: list of all units for this frame (necessary for neighbors)
     :param valid_types: list of valid unit types to consider (necessary for neighbors)
     :param feature_set: min, med, or max for feature set
@@ -53,13 +63,27 @@ def unit_to_dict(unit_in,
 
     unit_dict = dict()
 
-    if unit_spawn[0] < 0:
-        unit_dict['distance_from_home'] = 0.0
+    if last_position[0] < 0:
+        unit_dict['distance_moved'] = 0.0
     else:
-        unit_dict['distance_from_home'] = distance_between(unit_spawn[0], unit_spawn[1], unit_in.x, unit_in.y) / 512.0
+        unit_dict['distance_moved'] = distance_between(last_position[0], last_position[1], unit_in.x, unit_in.y) / 512.0
+
+    unit_pos = [unit_in.x, unit_in.y, unit_in.id]
+    bases = player_bases[unit_in.playerId]
+    enemy_bases = player_bases[((unit_in.playerId + 1) % 2)]
+    closest_base = dist_to_nearest_base(unit_pos, bases)
+
+    last_order = unit_in.orders[-1]
+    last_order_target = [last_order.targetX, last_order.targetY]
+    target_nearest_base = dist_to_nearest_base(last_order_target, bases)
+    nearest_enemy = dist_to_nearest_base(unit_pos, enemy_bases)
+    target_nearest_enemy = dist_to_nearest_base(last_order_target, enemy_bases)
+
     unit_dict['x'] = unit_in.x
     unit_dict['y'] = unit_in.y
     if min_feats:
+        unit_dict['dist_to_home'] = closest_base / 512.0
+        unit_dict['dist_to_enemy'] = nearest_enemy / 512.0
         unit_dict['percent_health'] = unit_in.health*1.0/unit_in.max_health
         nearby_allies = get_nearest_units(unit_in, all_units, valid_types)
         unit_dict['nearby_allies'] = nearby_allies*1.0/len(all_units)
@@ -68,17 +92,42 @@ def unit_to_dict(unit_in,
         unit_dict['mining'] = 1.0 if (unit_in.gathering_gas or unit_in.gathering_minerals or unit_in.carrying_gas or unit_in.carrying_minerals) else 0.0
         unit_dict['building'] = 1.0 if unit_in.constructing else 0.0
         unit_dict['visible'] = unit_in.visible
-        unit_dict['size'] = unit_in.size
-    if max_feats:
-        unit_dict['type'] = unit_in.type
-        unit_dict['armor'] = unit_in.armor
         if unit_in.maxCD > 0:
-            unit_dict['current_cooldown'] = (unit_in.groundCD)*1.0/(unit_in.maxCD)
+            unit_dict['current_cooldown'] = (unit_in.groundCD) * 1.0 / (unit_in.maxCD)
         else:
             unit_dict['current_cooldown'] = 0.0
+        unit_dict['size'] = unit_in.size
+    if max_feats:
+        unit_dict['target_dist_from_home'] = target_nearest_base / 512.0
+        unit_dict['target_dist_from_enemy'] = target_nearest_enemy / 512.0
+
+        target_in = [last_order.targetX, last_order.targetY, unit_in.id]
+        allies_near_target = get_nearest_units(target_in, all_units)
+
+        unit_dict['allies_near_target'] = allies_near_target*1.0/len(all_units)
+        # unit_dict['type'] = unit_in.type
+        # 1 hot typing
+        for valid_type in valid_types:
+            unit_dict[str(valid_types)] = 1.0 if unit_in.type == valid_type else 0.0
+        unit_dict['armor'] = unit_in.armor
 
     if add_orders:
-        unit_dict['order'] = unit_in.orders[-1].type
+        attacking_orders = [8, 9, 10, 11, 12, 14, 64, 65]
+        patrol_orders = [152, 159]
+        support_orders = [34, 35, 176, 177, 178, 179]
+        building_orders = [30, 32, 33, 42, 43]
+        mining_orders = [79,80,81,82,83,84,85,86,87,88,89,90]
+        for order in unit_in.orders:
+            if order.type in attacking_orders:
+                unit_dict['attacking'] = 1.0
+            elif order.type in patrol_orders:
+                unit_dict['patrolling'] = 1.0
+            elif order.type in support_orders:
+                unit_dict['supporting'] = 1.0
+            elif order.type in building_orders:
+                unit_dict['building'] = 1.0
+            elif order.type in mining_orders:
+                unit_dict['mining'] = 1.0
     return unit_dict
 
 
@@ -149,11 +198,21 @@ def game_over_time(replay,
     game_data = []
 
     starting_positions = {}
+    last_frame = {}
+    main_base_ids = [106, 131, 132, 133, 154]
 
     for frame_number in range(0, len(replay), step_size):
         frame = replay.getFrame(frame_number)
         units = frame.units
         this_frame = {}
+        playerbases = {0: [], 1: []}
+        if len(units.keys()) > 3:
+            return [{}]
+
+        for p_id, base_hunter in units.iteritems():
+            for maybe_base in base_hunter:
+                if maybe_base.type in main_base_ids:
+                    playerbases[p_id].append([maybe_base.x, maybe_base.y])
 
         for player_id, unit_arr in units.iteritems():
             if player_id != playerid and playerid < 2:
@@ -164,9 +223,9 @@ def game_over_time(replay,
                 if unit.type in valid_types:
                     if not unit.completed:
                         continue
-                    if unit.id in starting_positions:
+                    if unit.id in last_frame:
                         this_frame[unit.id] = unit_to_dict(unit,
-                                                           starting_positions[unit.id],
+                                                           last_frame[unit.id],
                                                            unit_arr,
                                                            valid_types,
                                                            feature_set,
@@ -178,7 +237,8 @@ def game_over_time(replay,
                                                            valid_types,
                                                            feature_set,
                                                            add_orders)
-                        starting_positions[unit.id] = (unit.x, unit.y)
+
+                    last_frame[unit.id] = (unit.x, unit.y)
         game_data.append(this_frame)
     return game_data
 
@@ -422,7 +482,7 @@ def hyper_params():
     # this is how many games i'm going to save:
     param_dict['num_games_to_parse'] = 500
     # I only want information on these units:
-    param_dict['terran_valid_types'] = [0, 1, 2, 3, 5, 7, 8, 9, 11, 12, 13, 30, 32, 34, 58]
+    param_dict['terran_valid_types'] = [0, 1, 2, 3, 5, 7, 8, 9, 11, 12, 30, 32, 34, 58, 124, 125]
     param_dict['zerg_valid_types'] = [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 50, 62, 103]
     param_dict['protoss_valid_types'] = [60, 61, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 83, 84, 85]
     param_dict['zerg_babies'] = [35, 36, 59, 97]

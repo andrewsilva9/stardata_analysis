@@ -9,23 +9,10 @@ from torchcraft import replayer
 import generate_role_datasets
 import numpy as np
 import data_utils
+import cPickle
+import os
 import cv2
 
-params = generate_role_datasets.hyper_params()
-
-color_dict = {
-    -1: (0, 0, 255),
-    0: (0, 255, 0),
-    1: (255, 0, 0),
-    2: (255, 153, 51),
-    3: (0, 0, 152),
-    4: (110, 255, 110),
-    5: (10, 85, 150),
-    6: (85, 85, 85),
-    7: (0, 128, 255)
-}
-
-test_set_replays = params['replays_master'][-4:-2]
 
 # If constantly carrying minerals / doing the mining set of actions, you're a miner
 # If doing the building / constructing set of actions, you're a builder
@@ -39,22 +26,6 @@ test_set_replays = params['replays_master'][-4:-2]
 # If patrolling, a patrol (how to get that?)
 # If running home and damaged / taking damage, retreating? which is...defender?
 # Other?
-
-role_dict = {
-    'miner': 0,
-    'builder': 1,
-    'scout': 2,
-    'idle': 3,
-    'attacker': 4,
-    'support': 5,
-    'defender': 6,
-    'patrol': 7,
-    'escort': 8,
-    'other': -1
-}
-reverse_role_dict = dict()
-for key, val in role_dict.iteritems():
-    reverse_role_dict[val] = key
 
 
 def am_i_mining(potential_miner):
@@ -182,6 +153,38 @@ def am_i_support(potential_support):
     return False
 
 
+def am_i_idle(potential_idler,
+              last_location,
+              current_location,
+              dist_from_home,
+              num_neighbors):
+    """
+    If I am idle (staging for moving out, or just forgotten)
+    :param potential_idler: unit to consider
+    :param last_location: where was it last
+    :param current_location: where is it now
+    :param dist_from_home: how far from nearest base
+    :param num_neighbors: how many allies nearby
+    :return: True for idle, False otherwise
+    """
+    if last_location == current_location[:2]:
+        if dist_from_home < 100:
+            return True
+
+
+def am_i_scouting(potential_scout,
+                  target_from_home,
+                  dist_from_home,
+                  last_location,
+                  current_location,
+                  num_neighbors):
+    if target_from_home > dist_from_home and num_neighbors < 1:
+        return True
+    if last_location == current_location[:2] and dist_from_home > 100 and num_neighbors <= 1:
+            return True
+    return False
+
+
 def dist(unit, base):
     return np.sqrt((unit[0] - base[0])**2 + (unit[1] - base[1])**2)
 
@@ -207,26 +210,14 @@ def get_unit_role(unit_in,
     :param last_location: where was I last?
     :return: int: unit role
     """
-    # unit_pos = [unit_in.x, unit_in.y, unit_in.id]
-    # bases = player_bases[unit_in.playerId]
-    # print("PLAYER_ID:", unit_in.playerId)
-    # print("BASES:", bases)
-    # print("ALL_BASES:", player_bases)
-    # closest_base = dist_to_nearest_base(unit_pos, bases)
-    # enemy_bases = player_bases[((unit_in.playerId+1) % 2)]
-    #
-    # nearest_enemy = dist_to_nearest_base(unit_pos, enemy_bases)
-    # print("x,y, id:", unit_pos)
-    # print('NN:', closest_base)
-    # print("NE:", nearest_enemy)
-
-    # These two require no information on distance from home, only on orders
+    # These three require no information on distance from home, only on orders
     if am_i_mining(unit_in):
         return role_dict['miner']
     if am_i_building(unit_in):
         return role_dict['builder']
     if am_i_support(unit_in):
         return role_dict['support']
+
     unit_pos = [unit_in.x, unit_in.y, unit_in.id]
     bases = player_bases[unit_in.playerId]
     enemy_bases = player_bases[((unit_in.playerId+1) % 2)]
@@ -236,7 +227,6 @@ def get_unit_role(unit_in,
     #     last_nearest = dist_to_nearest_base(last_location, bases)
     # else:
     #     last_nearest = closest_base
-
 
     last_order = unit_in.orders[-1]
     last_order_target = [last_order.targetX, last_order.targetY]
@@ -268,10 +258,19 @@ def get_unit_role(unit_in,
                          num_neighbors=nearby_allies):
         return role_dict['patrol']
 
-    elif target_nearest_base > closest_base and nearby_allies < 1:
+    elif am_i_scouting(unit_in,
+                       target_from_home=target_nearest_base,
+                       dist_from_home=closest_base,
+                       num_neighbors=nearby_allies,
+                       last_location=last_location,
+                       current_location=unit_pos):
         return role_dict['scout']
 
-    elif last_location == unit_pos[:2]:
+    elif am_i_idle(unit_in,
+                   last_location=last_location,
+                   current_location=unit_pos,
+                   dist_from_home=closest_base,
+                   num_neighbors=nearby_allies):
         return role_dict['idle']
     return -1
 
@@ -322,16 +321,18 @@ def game_role_data(replay_data,
         units = frame.units
         this_frame = {}
         playerbases = {0: [], 1: []}
+        if len(units.keys()) > 3:
+            return [{}]
 
         # Get the base locations
         for p_id, base_hunter in units.iteritems():
-                for maybe_base in base_hunter:
-                    if maybe_base.type in main_base_ids:
-                        playerbases[p_id].append([maybe_base.x, maybe_base.y])
+            for maybe_base in base_hunter:
+                if maybe_base.type in main_base_ids:
+                    playerbases[p_id].append([maybe_base.x, maybe_base.y])
         # Get the real data
         for player_id, unit_arr in units.iteritems():
             for unit in unit_arr:
-                #TODO valid_types should be... all mobile units? all units including buildings?
+                # TODO valid_types should be... all mobile units? all units including buildings?
                 if unit.type in valid_types:
                     if not unit.completed:
                         continue
@@ -355,21 +356,35 @@ def forward_fill(role_data_dict):
     :param role_data_dict: output from game_role_data. list of dicts of ids:roles
     :return: role_data_dict with role numbers overwritten by prior roles. same format as input though
     """
-    values_to_overwrite = [role_dict['other']]
     role_arrays = dict()
     forward_filled = []
+    aclen = 8  # Action length must be at least aclen frames in order to not be overwritten (8 frames per second)
     for frame_dict in role_data_dict:
-        replacement_dict = dict()
         for key, value in frame_dict.iteritems():
             if key in role_arrays:
-                if value in values_to_overwrite:
+                if value == role_dict['other']:
                     role_arrays[key].append(role_arrays[key][-1])
+                # elif value == role_dict['idle'] and role_arrays[key][-1] == role_dict['scout']:
+                #     role_arrays[key].append(role_dict['scout'])
                 else:
                     role_arrays[key].append(value)
             else:
                 role_arrays[key] = [value]
-            replacement_dict[key] = role_arrays[key][-1]
+
+    for key, role_list in role_arrays.iteritems():
+        last_role = role_list[0]
+        for role_ind in range(1, len(role_list)-1):
+            if role_list[role_ind] != last_role and role_list[role_ind:role_ind+aclen] != [role_list[role_ind]] * aclen:
+                role_list[role_ind] = last_role
+            last_role = role_list[role_ind]
+
+    for frame_dict in role_data_dict:
+        replacement_dict = dict()
+        for key, value in frame_dict.iteritems():
+            replacement_dict[key] = role_arrays[key][0]
+            del role_arrays[key][0]
         forward_filled.append(replacement_dict)
+
     return forward_filled
 
 
@@ -417,9 +432,10 @@ def draw_units(unit_dictionary_for_drawing,
                           color=unit_color,
                           thickness=-1)
         if show_text:
-            unit_text = data_utils.type_to_name(unit_dict['type']).split('_')[-1]
+            # unit_text = data_utils.type_to_name(unit_dict['type']).split('_')[-1]
+            unit_text = ''
             if unit_id in unit_dictionary_for_coloring:
-                unit_text = unit_text + '_' + reverse_role_dict[unit_dictionary_for_coloring[unit_id]]
+                unit_text = unit_text + '' + reverse_role_dict[unit_dictionary_for_coloring[unit_id]]
             cv2.putText(image_in,
                         unit_text,
                         (unit_dict['x'] * 2 - len(unit_text) * 5, unit_dict['y'] * 2 - unit_scale),
@@ -471,35 +487,85 @@ def play_opencv_replay(draw_data,
     cv2.destroyAllWindows()
     return True
 
+
 if __name__ == "__main__":
-    print test_set_replays
+    params = generate_role_datasets.hyper_params()
+
+    color_dict = {
+        -1: (0, 0, 255),
+        0: (0, 255, 0),
+        1: (255, 0, 0),
+        2: (255, 153, 51),
+        3: (0, 0, 152),
+        4: (110, 255, 110),
+        5: (10, 85, 150),
+        6: (85, 85, 85),
+        7: (0, 128, 255)
+    }
+
+    role_dict = {
+        'miner': 0,
+        'builder': 1,
+        'scout': 2,
+        'idle': 3,
+        'attacker': 4,
+        'support': 5,
+        'defender': 6,
+        'patrol': 7,
+        'escort': 8,
+        'other': -1
+    }
+    reverse_role_dict = dict()
+    for key1, val in role_dict.iteritems():
+        reverse_role_dict[val] = key1
+
+    test_set_replays = params['replays_master']
+
+    visualize = False
+    pkl_dir = '/home/asilva/Documents/stardata_analysis/gt_pkls'
+    labelled_games = 0
+    games_to_label = 200
     for replay_path in test_set_replays:
+        if labelled_games >= games_to_label:
+            break
         replay = replayer.load(replay_path)
         print("loaded replay: " + replay_path + " of length:" + str(len(replay)))
-        valid_draw_units = np.arange(0, 203).tolist()
         valid_role_units = params['terran_valid_types'] # + params['zerg_valid_types'] + params['protoss_valid_types']
-        draw_data = generate_role_datasets.game_data_for_drawing(replay=replay,
-                                                                 valid_types=valid_draw_units,
-                                                                 playerid=2,
-                                                                 step_size=1)
-        print("Draw data loaded")
         role_data = game_role_data(replay_data=replay,
                                    valid_types=valid_role_units,
                                    playerid=2,
                                    step_size=1)
+
+        if not role_data[0]:
+            print("No valid units in " + replay_path)
+            continue
+
         print("Roles assigned")
         ffilled = forward_fill(role_data)
         print("Forward filled")
-        movie_name = replay_path.split('/')[-1] + 'GT'
+        pkl_name = os.path.join(pkl_dir, replay_path.split('/')[-1].split('.')[0] + 'GT.pkl')
+        cPickle.dump(ffilled, open(pkl_name, 'wb'), protocol=cPickle.HIGHEST_PROTOCOL)
+        labelled_games += 1
 
-        save_vid = True
-        play_vid = False
-        draw_text = False
-        fps = 8
-        play_opencv_replay(draw_data=draw_data,
-                           processed_data=ffilled,
-                           clf_name=movie_name,
-                           framerate=fps,
-                           save_video=save_vid,
-                           play_video=play_vid,
-                           show_text=draw_text)
+        if labelled_games % 25 == 0:
+            valid_draw_units = np.arange(0, 203).tolist()
+
+            draw_data = generate_role_datasets.game_data_for_drawing(replay=replay,
+                                                                     valid_types=valid_draw_units,
+                                                                     playerid=2,
+                                                                     step_size=1)
+            print("Draw data loaded")
+
+            movie_name = replay_path.split('/')[-1] + 'GT'
+
+            save_vid = True
+            play_vid = False
+            draw_text = True
+            fps = 8
+            play_opencv_replay(draw_data=draw_data,
+                               processed_data=ffilled,
+                               clf_name=movie_name,
+                               framerate=fps,
+                               save_video=save_vid,
+                               play_video=play_vid,
+                               show_text=draw_text)

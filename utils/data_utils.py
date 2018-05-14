@@ -1,5 +1,8 @@
 import pickle
 import numpy as np
+from torchcraft import replayer
+import generate_role_datasets
+
 
 bad_keys = ['x', 'y', 'velocityX', 'velocityY', 'resources', 'pixel_x', 'pixel_y', 'groundCD', 'airCD', 'health',
             'shield', 'playerId', 'energy', 'type_name', 'type']
@@ -378,3 +381,41 @@ order_enum = \
 
 def order_type_to_name(order_id):
     return order_enum[order_id]
+
+
+def autoencode_dataset(data_replays,
+                       valid_types,
+                       step_size,
+                       window_size,
+                       feature_set,
+                       add_orders,
+                       num_games):
+    games_collected = 0
+    X = None
+    for replay_path in data_replays:
+        if games_collected >= num_games:
+            break
+        replay = replayer.load(replay_path)
+        print("loaded replay: " + replay_path + " of length:" + str(len(replay)))
+        input_data = generate_role_datasets.game_over_time(replay=replay,
+                                                           valid_types=valid_types,
+                                                           playerid=2,
+                                                           step_size=step_size,
+                                                           feature_set=feature_set,
+                                                           add_orders=add_orders)
+
+        if not input_data[0]:
+            print("No valid units in " + replay_path)
+            continue
+
+        print("Data collected")
+        x_in = generate_role_datasets.hmm_data(input_data, n_timesteps=window_size, for_drawing=False)
+        x_in = np.array(x_in)
+        print("temporally stitched")
+        if X is None:
+            X = x_in
+        else:
+            X = np.vstack((X, x_in))
+        games_collected += 1
+
+    return X

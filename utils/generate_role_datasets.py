@@ -22,9 +22,13 @@ unit_attrs = ['type',
               'playerId',
               'max_health',
               'health']
-flags = ['accelerating', 'attacking', 'attack_frame', 'being_constructed', 'being_gathered', 'being_healed', 'blind', 'braking', 'burrowed', 'carrying_gas', 'carrying_minerals', 'cloaked', 'completed', 'constructing', 'defense_matrixed', 'detected', 'ensnared', 'flying', 'following', 'gathering_gas', 'gathering_minerals', 'hallucination', 'holding_position', 'idle', 'interruptible', 'invincible', 'irradiated', 'lifted', 'loaded', 'locked_down', 'maelstrommed', 'morphing', 'moving', 'parasited', 'patrolling', 'plagued', 'powered', 'repairing', 'researching', 'selected', 'sieged', 'starting_attack', 'stasised', 'stimmed', 'stuck', 'targetable', 'training', 'under_attack', 'under_dark_swarm', 'under_disruption_web', 'under_storm', 'upgrading']
+# flags = ['accelerating', 'attacking', 'attack_frame', 'being_constructed', 'being_gathered', 'being_healed', 'blind', 'braking', 'burrowed', 'carrying_gas', 'carrying_minerals', 'cloaked', 'completed', 'constructing', 'defense_matrixed', 'detected', 'ensnared', 'flying', 'following', 'gathering_gas', 'gathering_minerals', 'hallucination', 'holding_position', 'idle', 'interruptible', 'invincible', 'irradiated', 'lifted', 'loaded', 'locked_down', 'maelstrommed', 'morphing', 'moving', 'parasited', 'patrolling', 'plagued', 'powered', 'repairing', 'researching', 'selected', 'sieged', 'starting_attack', 'stasised', 'stimmed', 'stuck', 'targetable', 'training', 'under_attack', 'under_dark_swarm', 'under_disruption_web', 'under_storm', 'upgrading']
 # Uncomment for flags as attributes:
 # unit_attrs += flags
+
+
+def dist(unit, base):
+    return np.sqrt((unit[0] - base[0])**2 + (unit[1] - base[1])**2)
 
 
 def dist_to_nearest_base(unit_position, bases):
@@ -48,6 +52,7 @@ def unit_to_dict(unit_in,
     :param unit_in: unit to interpret
     :param last_position: position of unit in the last frame (-1,-1 means this is the first time i've seen this unit)
     :param all_units: list of all units for this frame (necessary for neighbors)
+    :param player_bases: dict with lists of player base locations
     :param valid_types: list of valid unit types to consider (necessary for neighbors)
     :param feature_set: min, med, or max for feature set
     :param add_orders: include order info as feature
@@ -62,11 +67,12 @@ def unit_to_dict(unit_in,
         min_feats = True
 
     unit_dict = dict()
+    unit_pos = [unit_in.x, unit_in.y, unit_in.id]
 
     if last_position[0] < 0:
         unit_dict['distance_moved'] = 0.0
     else:
-        unit_dict['distance_moved'] = distance_between(last_position[0], last_position[1], unit_in.x, unit_in.y) / 512.0
+        unit_dict['distance_moved'] = dist([last_position[0], last_position[1]], unit_pos) / 512.0
 
     unit_pos = [unit_in.x, unit_in.y, unit_in.id]
     bases = player_bases[unit_in.playerId]
@@ -79,19 +85,19 @@ def unit_to_dict(unit_in,
     nearest_enemy = dist_to_nearest_base(unit_pos, enemy_bases)
     target_nearest_enemy = dist_to_nearest_base(last_order_target, enemy_bases)
 
-    unit_dict['x'] = unit_in.x
-    unit_dict['y'] = unit_in.y
+    unit_dict['x'] = unit_in.x / 512.0
+    unit_dict['y'] = unit_in.y / 512.0
     if min_feats:
         unit_dict['dist_to_home'] = closest_base / 512.0
         unit_dict['dist_to_enemy'] = nearest_enemy / 512.0
         unit_dict['percent_health'] = unit_in.health*1.0/unit_in.max_health
-        nearby_allies = get_nearest_units(unit_in, all_units, valid_types)
+        nearby_allies = get_nearest_units(unit_pos, all_units, valid_types)
         unit_dict['nearby_allies'] = nearby_allies*1.0/len(all_units)
     if med_feats:
         unit_dict['attacking'] = 1.0 if unit_in.attacking else 0.0
         unit_dict['mining'] = 1.0 if (unit_in.gathering_gas or unit_in.gathering_minerals or unit_in.carrying_gas or unit_in.carrying_minerals) else 0.0
         unit_dict['building'] = 1.0 if unit_in.constructing else 0.0
-        unit_dict['visible'] = unit_in.visible
+        # unit_dict['visible'] = unit_in.visible
         if unit_in.maxCD > 0:
             unit_dict['current_cooldown'] = (unit_in.groundCD) * 1.0 / (unit_in.maxCD)
         else:
@@ -102,13 +108,13 @@ def unit_to_dict(unit_in,
         unit_dict['target_dist_from_enemy'] = target_nearest_enemy / 512.0
 
         target_in = [last_order.targetX, last_order.targetY, unit_in.id]
-        allies_near_target = get_nearest_units(target_in, all_units)
+        allies_near_target = get_nearest_units(target_in, all_units, valid_types)
 
         unit_dict['allies_near_target'] = allies_near_target*1.0/len(all_units)
         # unit_dict['type'] = unit_in.type
         # 1 hot typing
         for valid_type in valid_types:
-            unit_dict[str(valid_types)] = 1.0 if unit_in.type == valid_type else 0.0
+            unit_dict[str(valid_type)] = 1.0 if unit_in.type == valid_type else 0.0
         unit_dict['armor'] = unit_in.armor
 
     if add_orders:
@@ -116,7 +122,12 @@ def unit_to_dict(unit_in,
         patrol_orders = [152, 159]
         support_orders = [34, 35, 176, 177, 178, 179]
         building_orders = [30, 32, 33, 42, 43]
-        mining_orders = [79,80,81,82,83,84,85,86,87,88,89,90]
+        mining_orders = [79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90]
+        unit_dict['patrolling'] = 0.0
+        unit_dict['supporting'] = 0.0
+        unit_dict['attacking'] = 0.0 if 'attacking' not in unit_dict else unit_dict['attacking']
+        unit_dict['building'] = 0.0 if 'building' not in unit_dict else unit_dict['building']
+        unit_dict['mining'] = 0.0 if 'mining' not in unit_dict else unit_dict['mining']
         for order in unit_in.orders:
             if order.type in attacking_orders:
                 unit_dict['attacking'] = 1.0
@@ -147,13 +158,13 @@ def unit_to_dict_for_drawing(unit_in):
     return unit_dict
 
 
-def get_nearest_units(unit_in,
+def get_nearest_units(unit_in_pos,
                       all_units,
                       valid_types,
-                      threshold=10):
+                      threshold=35):
     """
     return a np array of self + nearest n_nearest units
-    :param unit_in: unit to compare to
+    :param unit_in_pos: unit to compare to as a tuple of [x_pos, y_pos, unit_id]
     :param all_units: all units owned by the same player
     :param valid_types: list of unit_type attributes that i want to consider
     :param threshold: must be at least this close
@@ -161,22 +172,20 @@ def get_nearest_units(unit_in,
     """
     nearby_allies = 0
     for unit in all_units:
-        if unit.id == unit_in.id:
+        if unit.id == unit_in_pos[2]:
             continue
         # If unit is not a valid unit
         if unit.type not in valid_types:
             continue
-        diff = distance_between(unit.x, unit.y, unit_in.x, unit_in.y)
+        unit_to_consider = [unit.x, unit.y]
+
+        diff = dist([unit_in_pos[0], unit_in_pos[1]], unit_to_consider)
         if diff > threshold:
             continue
         else:
             # Don't need to compare playerId because unit_arr is always the same playerId as me
             nearby_allies += 1
     return nearby_allies
-
-
-def distance_between(x1, y1, x2, y2):
-    return np.sqrt((x1-x2)**2 + (y1-y2)**2)
 
 
 def game_over_time(replay,
@@ -197,7 +206,7 @@ def game_over_time(replay,
     """
     game_data = []
 
-    starting_positions = {}
+    # starting_positions = {}
     last_frame = {}
     main_base_ids = [106, 131, 132, 133, 154]
 
@@ -224,19 +233,21 @@ def game_over_time(replay,
                     if not unit.completed:
                         continue
                     if unit.id in last_frame:
-                        this_frame[unit.id] = unit_to_dict(unit,
-                                                           last_frame[unit.id],
-                                                           unit_arr,
-                                                           valid_types,
-                                                           feature_set,
-                                                           add_orders)
+                        this_frame[unit.id] = unit_to_dict(unit_in=unit,
+                                                           last_position=last_frame[unit.id],
+                                                           all_units=unit_arr,
+                                                           player_bases=playerbases,
+                                                           valid_types=valid_types,
+                                                           feature_set=feature_set,
+                                                           add_orders=add_orders)
                     else:
-                        this_frame[unit.id] = unit_to_dict(unit,
-                                                           (-1, -1),
-                                                           unit_arr,
-                                                           valid_types,
-                                                           feature_set,
-                                                           add_orders)
+                        this_frame[unit.id] = unit_to_dict(unit_in=unit,
+                                                           last_position=(-1, -1),
+                                                           player_bases=playerbases,
+                                                           all_units=unit_arr,
+                                                           valid_types=valid_types,
+                                                           feature_set=feature_set,
+                                                           add_orders=add_orders)
 
                     last_frame[unit.id] = (unit.x, unit.y)
         game_data.append(this_frame)
@@ -287,38 +298,27 @@ def hmm_data(game_array,
     :param for_drawing: if true, returns way too much data for sampling at draw time. set to false for hmm training data
     :return game_array: an array of a single game, where units are N timesteps longer
     """
-    # TODO: Eventually, fix that this is seeing into the future
     final_game_data = []
     for frame_index in range(0, len(game_array), n_timesteps):
 
         to_add = {}
         upcoming_seq = {}
-        starting_points = {}
-
         for frame_ind, frame in enumerate(game_array[frame_index:frame_index + n_timesteps]):
 
             for unit_id, unit_arr in frame.iteritems():
-                if unit_id in upcoming_seq:
-                    x_diff = starting_points[unit_id][0] - unit_arr['x']
-                    y_diff = starting_points[unit_id][1] - unit_arr['y']
-                    new_data = [x_diff, y_diff]
-                else:
-                    new_data = [0, 0]
-                    starting_points[unit_id] = [unit_arr['x'], unit_arr['y']]
+                if unit_id not in upcoming_seq:
                     if frame_ind > frame_index:
-                        # the 2 + is for x and y diff
-                        filler_data = [[-1] * (2 + len(unit_arr))] * (frame_ind - frame_index)
+                        filler_data = [[-1] * (len(unit_arr))] * (frame_ind - frame_index)
                         upcoming_seq[unit_id] = filler_data
                     else:
                         upcoming_seq[unit_id] = []
-                del unit_arr['x']
-                del unit_arr['y']
-                new_data.extend(unit_arr.values())
-                upcoming_seq[unit_id].append(new_data)
+                upcoming_seq[unit_id].append(unit_arr.values())
 
         # Pad missing timesteps with -1s
         if upcoming_seq:
-            filler_arr = [[-1] * len(new_data)]
+            unit_arr_len = len(upcoming_seq[upcoming_seq.keys()[0]][0])
+
+            filler_arr = [[-1] * unit_arr_len]
             correct_length = n_timesteps
             for unit_id, unit_seq in upcoming_seq.iteritems():
                 if len(unit_seq) < correct_length:
@@ -475,7 +475,7 @@ def play_opencv_replay(draw_data,
 def hyper_params():
     param_dict = dict()
     # This file is generated from `get_good_replays.py`
-    replays_master = open('good_files.txt', 'r').readlines()
+    replays_master = open('/home/asilva/Documents/stardata_analysis/utils/good_files.txt', 'r').readlines()
     for i in range(len(replays_master)):
         replays_master[i] = replays_master[i].split('\n')[0]
     param_dict['replays_master'] = replays_master
@@ -493,8 +493,8 @@ def hyper_params():
 
     param_dict['components'] = 10
 
-    param_dict['step_frames'] = 4
-    param_dict['window_size'] = 23
+    param_dict['step_frames'] = 1
+    param_dict['window_size'] = 16
     param_dict['playerid'] = 2
 
     param_dict['feature_set'] = 'max'

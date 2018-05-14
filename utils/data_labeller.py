@@ -280,7 +280,7 @@ def get_nearest_units(unit_in_pos,
                       threshold=35):
     """
     return a count of nearby neighbors. buildings included.
-    :param unit_in: unit to compare to as [x, y, id] tuple
+    :param unit_in_pos: unit to compare to as [x, y, id] tuple
     :param all_units: all units owned by the same player
     :param threshold: must be at least this close
     :return: number of nearby allies

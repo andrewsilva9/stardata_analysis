@@ -1,6 +1,6 @@
 # stardata_analysis
 
-This is a repo that allows for analysis and reading of SCBW replays using TorchCraft, specifically examining the replays from [StarData](https://github.com/TorchCraft/StarData) and the version of TorchCraft therein.
+This is a repo that allows for analysis and reading of SCBW replays using TorchCraft, specifically examining the replays from [StarData](https://github.com/TorchCraft/StarData) and the version of TorchCraft therein. Soccer data for the [AAMAS paper](https://dl.acm.org/doi/abs/10.5555/3306127.3331883) comes from: https://datasets.simula.no/alfheim/
 
 ### Requirements / StarData Install:
 
